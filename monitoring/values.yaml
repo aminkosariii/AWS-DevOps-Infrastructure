@@ -1,0 +1,17 @@
+grafana:
+  adminPassword:
+    secret: grafana-admin
+    key: password
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClassName: gp2
+prometheus:
+  prometheusSpec:
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi

@@ -1,0 +1,25 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  replicas: 2
+  serviceAccountName: prometheus
+  serviceMonitorSelector:
+    matchLabels:
+      app: python-app
+  ruleSelector:
+    matchLabels:
+      prometheus: k8s
+  alerting:
+    alertmanagers:
+    - namespace: monitoring
+      name: alertmanager
+  storageSpec:
+    volumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi

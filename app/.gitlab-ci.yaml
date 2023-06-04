@@ -1,0 +1,87 @@
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  DOCKER_REGISTRY: $DOCKER_REGISTRY
+  AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+  APP_NAME: stop_instances
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+  AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+  KUBE_CLUSTER_NAME: $EKS_CLUSTER_NAME
+  KUBE_CLUSTER_REGION: $EKS_CLUSTER_REGION
+  KUBE_CLUSTER_ENDPOINT: $EKS_CLUSTER_ENDPOINT
+
+
+.base_job:
+  before_script:
+    - apk add --no-cache curl jq python3 py3-pip
+    - pip install awscli
+    - aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin ${DOCKER_REGISTRY}
+    - aws --version
+    - docker info
+    - docker --version
+  tags:
+    - parvin
+
+cache:
+  when: on_success
+  key: "${CI_COMMIT_REF_SLUG}-${CI_ENVIRONMENT_NAME}"
+  paths:
+    - .docker/
+    - /usr/local/bin/aws
+    - /root/.cache/pip
+    - /root/.local/share/virtualenvs/
+  expires_in: 2 weeks
+
+services:
+  - docker:dind
+
+build:
+  stage: build
+  extends: .base_job
+
+  image: docker:stable
+  services:
+    - docker:dind
+  only:
+    - main
+  script:
+    - docker build -t ${APP_NAME} .
+    - docker tag ${APP_NAME}:latest ${DOCKER_REGISTRY}:${CI_PIPELINE_IID}
+    - docker push ${DOCKER_REGISTRY}:${CI_PIPELINE_IID}
+  tags:
+    - parvin
+  artifacts:
+    paths:
+      - my-artifact.tar.gz
+
+test:
+  stage: test
+  extends: .base_job
+  only:
+    - main
+  script:
+    - echo "Running tests..."
+
+
+deploy:
+  image:
+    name: alpine/k8s:1.27.0
+  stage: deploy
+  before_script:
+    - aws configure set aws_access_key_id ${AWS_ACCESS_KEY_ID}
+    - aws configure set aws_secret_access_key ${AWS_SECRET_ACCESS_KEY}
+    - aws configure set default.region ${KUBE_CLUSTER_REGION}
+    - aws configure set default.output json
+    - cat $HOME/.aws/credentials
+    - aws eks --region ${KUBE_CLUSTER_REGION} update-kubeconfig --name ${KUBE_CLUSTER_NAME}
+  script:
+    - kubectl apply -f deployment.yaml
+  only:
+    - main
+  tags:
+    - parvin

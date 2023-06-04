@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stop-instances
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stop-instances
+  template:
+    metadata:
+      labels:
+        app: stop-instances
+    spec:
+      containers:
+      - name: stop-instances
+        image: python:3.9
+        command: ["python", "stop_instances.py"]
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: secret-access-key
