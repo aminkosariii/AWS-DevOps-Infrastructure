@@ -41,6 +41,11 @@ resource "aws_instance" "gitlab_instance" {
   key_name        = aws_key_pair.parvinkeypair.key_name
   security_groups = [aws_security_group.gitlab-security-group.name]
 
+  root_block_device {
+    volume_size = 100
+    volume_type = "gp2"
+  }
+
   connection {
     type        = "ssh"
     user        = "ubuntu"
